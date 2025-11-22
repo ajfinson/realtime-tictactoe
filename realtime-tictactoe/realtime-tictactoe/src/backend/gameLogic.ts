@@ -12,6 +12,12 @@ export interface GameState {
   status: GameStatus;
   winner: Mark | null;
   players: PlayersMap;
+  sequenceNumber: number;
+  createdAt: number;
+  lockRenewals: {
+    X: ReturnType<typeof setInterval> | null;
+    O: ReturnType<typeof setInterval> | null;
+  };
 }
 
 export type GamesMap = Map<string, GameState>;
@@ -30,7 +36,10 @@ export function createInitialGameState(): GameState {
     nextTurn: 'X',
     status: 'waiting',
     winner: null,
-    players: { X: null, O: null }
+    players: { X: null, O: null },
+    sequenceNumber: 0,
+    createdAt: Date.now(),
+    lockRenewals: { X: null, O: null }
   };
 }
 
@@ -63,7 +72,7 @@ export function checkWinner(board: Board): Mark | null {
     if (a && a === b && a === c) {
       return a as Mark;
     }
-    }
+  }
   return null;
 }
 
@@ -77,6 +86,15 @@ export function broadcastToGame(game: GameState, message: any) {
     const ws = game.players[mark];
     if (ws && ws.readyState === ws.OPEN) {
       ws.send(payload);
+    }
+  });
+}
+
+export function cleanupGame(game: GameState) {
+  (['X', 'O'] as Mark[]).forEach(mark => {
+    if (game.lockRenewals[mark]) {
+      clearInterval(game.lockRenewals[mark]!);
+      game.lockRenewals[mark] = null;
     }
   });
 }
