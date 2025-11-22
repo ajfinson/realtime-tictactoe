@@ -72,6 +72,7 @@ export interface SyncStateMessage {
   nextTurn: Mark;
   status: GameStatus;
   winner: Mark | null;
+  sequenceNumber: number;
   lastMove: {
     mark: Mark;
     row: number;

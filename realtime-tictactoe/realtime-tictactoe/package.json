@@ -5,10 +5,13 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "serverA": "PORT=3001 SERVER_ID=server-A ts-node src/backend/index.ts",
-    "serverB": "PORT=3002 SERVER_ID=server-B ts-node src/backend/index.ts",
+    "redis:start": "docker run --rm --name ttt-redis -p 6379:6379 redis",
+    "redis:check": "docker ps --filter name=ttt-redis --format \"{{.Names}}\" | findstr ttt-redis",
+    "serverA": "cross-env PORT=3001 SERVER_ID=server-A ts-node src/backend/index.ts",
+    "serverB": "cross-env PORT=3002 SERVER_ID=server-B ts-node src/backend/index.ts",
     "client:X": "ts-node src/client/client.ts ws://localhost:3001 X",
-    "client:O": "ts-node src/client/client.ts ws://localhost:3002 O"
+    "client:O": "ts-node src/client/client.ts ws://localhost:3002 O",
+    "play-game": "concurrently --kill-others-on-fail --names \"Redis,ServerA,ServerB,ClientX,ClientO\" -c \"blue,green,yellow,cyan,magenta\" \"npm run redis:start\" \"wait-on tcp:6379 && npm run serverA\" \"wait-on tcp:6379 && npm run serverB\" \"wait-on tcp:3001 tcp:3002 && npm run client:X\" \"wait-on tcp:3001 tcp:3002 && npm run client:O\""
   },
   "dependencies": {
     "redis": "^4.6.13",
@@ -17,7 +20,10 @@
   "devDependencies": {
     "@types/node": "^22.8.1",
     "@types/ws": "^8.5.10",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "wait-on": "^7.2.0"
   }
 }
