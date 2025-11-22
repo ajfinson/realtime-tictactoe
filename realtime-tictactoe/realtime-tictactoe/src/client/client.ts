@@ -55,9 +55,14 @@ function printBoard(): void {
 
 function askForMove(ws: WebSocket): void {
   if (status !== 'playing') return;
-  if (nextTurn !== mark) return;
 
   rl.question(`Your move (${mark}). Enter "row,col" (0-2): `, (answer: string) => {
+    // Check if it's our turn
+    if (nextTurn !== mark) {
+      console.log(`⏳ Not your turn yet. Waiting for ${nextTurn} to move...`);
+      return askForMove(ws);
+    }
+
     const parts = answer.split(',');
     if (parts.length !== 2) {
       console.log('Invalid format. Use row,col');
