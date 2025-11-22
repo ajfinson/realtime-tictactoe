@@ -1,9 +1,9 @@
-import { createClient, type RedisClientType } from 'redis';
+import { createClient } from 'redis';
 import type { SyncStateMessage } from '../shared/protocol';
 
 export interface RedisSync {
-  pub: RedisClientType;
-  sub: RedisClientType;
+  pub: ReturnType<typeof createClient>;
+  sub: ReturnType<typeof createClient>;
   channel: string;
 }
 

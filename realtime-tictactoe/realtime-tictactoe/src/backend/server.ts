@@ -158,8 +158,27 @@ async function handleJoinMessage(
   // Start lock renewal heartbeat
   game.lockRenewals[requestedMark] = startLockRenewal(redisSync, gameId, requestedMark, serverId);
 
-  if (game.players.X && game.players.O && game.status === 'waiting') {
+  // Check if both players have locks (across all servers)
+  const xLockExists = await redisSync.pub.exists(`game:${gameId}:player:X`);
+  const oLockExists = await redisSync.pub.exists(`game:${gameId}:player:O`);
+  
+  if (xLockExists && oLockExists && game.status === 'waiting') {
     game.status = 'playing';
+    game.sequenceNumber++;
+    
+    // Broadcast game start to other servers
+    const syncMsg: SyncStateMessage = {
+      type: 'sync_state',
+      origin: serverId,
+      gameId,
+      board: game.board,
+      nextTurn: game.nextTurn,
+      status: game.status,
+      winner: game.winner,
+      sequenceNumber: game.sequenceNumber,
+      lastMove: null
+    };
+    await publishSyncState(redisSync, syncMsg);
   }
 
   socket.send(
