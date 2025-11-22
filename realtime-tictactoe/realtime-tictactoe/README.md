@@ -8,6 +8,20 @@ This project implements a **production-ready**, real-time, multiplayer Tic-Tac-T
 - **Distributed coordination** - Redis-based locking prevents race conditions and duplicate players
 - **Full game logic** - Moves are validated, wins/draws detected, and invalid moves rejected
 
+## AI Development Disclosure
+
+This project was developed with **significant assistance from AI tools** (GitHub Copilot with Claude Sonnet 4.5). **ChatGPT o1** was used to review architecture and design decisions. The AI helped with:
+
+- **Architecture design** - Distributed system patterns, Redis locking strategies, and race condition prevention
+- **Code implementation** - TypeScript interfaces, WebSocket handlers, Redis pub/sub integration
+- **Production enhancements** - TTL-based locking, sequence numbers, reconnection logic, memory management
+- **Testing infrastructure** - Jest setup, comprehensive unit tests for game logic and configuration
+- **Logging system** - Structured logger with color-coded output and contextual information
+- **Documentation** - README structure, architecture diagrams, and usage examples
+- **Code quality** - TypeScript type safety improvements, error handling, and code organization
+
+**Important:** This project had **human oversight at every step** from initial design through final implementation. The AI acted as a pair programming partner and architectural consultant, but all decisions, code reviews, testing, and validation were performed with human judgment and approval. Every feature was tested and verified to work correctly before acceptance.
+
 ## Architecture and Communication Design
 
 ### System Overview
