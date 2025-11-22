@@ -1,12 +1,15 @@
 import { initRedisSync } from './redisSync';
 import { startWebSocketServer } from './server';
+import { loadServerConfig, loadRedisConfig } from '../shared/config';
 
 async function main() {
-  const port = Number(process.env.PORT || 3001);
-  const serverId = process.env.SERVER_ID || `server-${port}`;
+  const serverConfig = loadServerConfig();
+  const redisConfig = loadRedisConfig();
 
-  const redisSync = await initRedisSync('ttt_game_updates');
-  startWebSocketServer(port, serverId, redisSync);
+  console.log(`Starting ${serverConfig.serverId} on port ${serverConfig.port}`);
+  
+  const redisSync = await initRedisSync(redisConfig);
+  startWebSocketServer(serverConfig.port, serverConfig.serverId, redisSync);
 }
 
 main().catch(err => {

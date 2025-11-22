@@ -1,9 +1,9 @@
-import type { Board, Cell, GameStatus, Mark } from '../shared/protocol';
+import type { Board, Cell, GameStatus, Mark, ServerToClientMessage } from '../shared/protocol';
+import type WebSocket from 'ws';
 
-// Players map is typed as any to avoid depending directly on ws types here
 export interface PlayersMap {
-  X: any | null;
-  O: any | null;
+  X: WebSocket | null;
+  O: WebSocket | null;
 }
 
 export interface GameState {
@@ -80,9 +80,9 @@ export function isBoardFull(board: Board): boolean {
   return board.every(row => row.every(cell => cell !== ''));
 }
 
-export function broadcastToGame(game: GameState, message: any) {
-  const payload = JSON.stringify(message);
-  (['X', 'O'] as Mark[]).forEach(mark => {
+export function broadcastToGame(game: GameState, message: ServerToClientMessage): void {
+  const payload: string = JSON.stringify(message);
+  (['X', 'O'] as Mark[]).forEach((mark: Mark) => {
     const ws = game.players[mark];
     if (ws && ws.readyState === ws.OPEN) {
       ws.send(payload);
@@ -90,8 +90,8 @@ export function broadcastToGame(game: GameState, message: any) {
   });
 }
 
-export function cleanupGame(game: GameState) {
-  (['X', 'O'] as Mark[]).forEach(mark => {
+export function cleanupGame(game: GameState): void {
+  (['X', 'O'] as Mark[]).forEach((mark: Mark) => {
     if (game.lockRenewals[mark]) {
       clearInterval(game.lockRenewals[mark]!);
       game.lockRenewals[mark] = null;

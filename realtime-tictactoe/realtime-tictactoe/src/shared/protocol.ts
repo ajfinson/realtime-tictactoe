@@ -81,6 +81,6 @@ export interface SyncStateMessage {
 }
 
 // Runtime guard
-export function isClientToServerMessage(obj: any): obj is ClientToServerMessage {
-  return obj && typeof obj.type === 'string' && (obj.type === 'join' || obj.type === 'move');
+export function isClientToServerMessage(obj: unknown): obj is ClientToServerMessage {
+  return obj !== null && typeof obj === 'object' && 'type' in obj && typeof obj.type === 'string' && (obj.type === 'join' || obj.type === 'move');
 }

@@ -1,27 +1,24 @@
 import { createClient } from 'redis';
 import type { SyncStateMessage } from '../shared/protocol';
+import type { RedisConfig } from '../shared/config';
 
 export interface RedisSync {
   pub: ReturnType<typeof createClient>;
   sub: ReturnType<typeof createClient>;
   channel: string;
+  config: RedisConfig;
 }
 
-const LOCK_TTL = 30; // seconds
-const LOCK_RENEWAL_INTERVAL = 10000; // 10 seconds
-
-export async function initRedisSync(channel = 'ttt_game_updates'): Promise<RedisSync> {
-  const url = process.env.REDIS_URL || 'redis://localhost:6379';
-
+export async function initRedisSync(config: RedisConfig): Promise<RedisSync> {
   const pub = createClient({ 
-    url,
+    url: config.url,
     socket: {
       reconnectStrategy: (retries: number) => {
-        if (retries > 10) {
+        if (retries > config.maxReconnectAttempts) {
           console.error('Redis pub: Too many reconnection attempts, giving up');
           return new Error('Too many retries');
         }
-        const delay = Math.min(retries * 100, 3000);
+        const delay = Math.min(retries * config.reconnectBaseDelay, config.reconnectMaxDelay);
         console.log(`Redis pub: Reconnecting in ${delay}ms (attempt ${retries})`);
         return delay;
       }
@@ -29,14 +26,14 @@ export async function initRedisSync(channel = 'ttt_game_updates'): Promise<Redis
   });
   
   const sub = createClient({ 
-    url,
+    url: config.url,
     socket: {
       reconnectStrategy: (retries: number) => {
-        if (retries > 10) {
+        if (retries > config.maxReconnectAttempts) {
           console.error('Redis sub: Too many reconnection attempts, giving up');
           return new Error('Too many retries');
         }
-        const delay = Math.min(retries * 100, 3000);
+        const delay = Math.min(retries * config.reconnectBaseDelay, config.reconnectMaxDelay);
         console.log(`Redis sub: Reconnecting in ${delay}ms (attempt ${retries})`);
         return delay;
       }
@@ -55,7 +52,7 @@ export async function initRedisSync(channel = 'ttt_game_updates'): Promise<Redis
   await pub.connect();
   await sub.connect();
 
-  return { pub, sub, channel };
+  return { pub, sub, channel: config.channel, config };
 }
 
 export async function publishSyncState(
@@ -91,7 +88,7 @@ export async function acquirePlayerLock(
   try {
     const result = await sync.pub.set(lockKey, serverId, {
       NX: true,
-      EX: LOCK_TTL
+      EX: sync.config.lockTTL
     });
     return result === 'OK';
   } catch (err) {
@@ -111,12 +108,12 @@ export function startLockRenewal(
     try {
       const currentOwner = await sync.pub.get(lockKey);
       if (currentOwner === serverId) {
-        await sync.pub.expire(lockKey, LOCK_TTL);
+        await sync.pub.expire(lockKey, sync.config.lockTTL);
       }
     } catch (err) {
       console.error('Error renewing lock:', err);
     }
-  }, LOCK_RENEWAL_INTERVAL);
+  }, sync.config.lockRenewalInterval);
 }
 
 export async function releasePlayerLock(
@@ -139,13 +136,14 @@ export async function releasePlayerLock(
 export async function acquireGameMutex(
   sync: RedisSync,
   gameId: string,
-  serverId: string
+  serverId: string,
+  mutexTTL: number
 ): Promise<boolean> {
   const mutexKey = `game:${gameId}:mutex`;
   try {
     const result = await sync.pub.set(mutexKey, serverId, {
       NX: true,
-      EX: 5 // Short TTL for mutex
+      EX: mutexTTL
     });
     return result === 'OK';
   } catch (err) {

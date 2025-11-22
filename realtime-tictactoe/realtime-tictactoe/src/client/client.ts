@@ -9,9 +9,13 @@ import {
   type EndMessage,
   type ErrorMessage
 } from '../shared/protocol';
+import { loadClientConfig, loadGameConfig } from '../shared/config';
 
-const serverUrl = process.argv[2] || 'ws://localhost:3001';
-const mark = (process.argv[3] || 'X').toUpperCase() as Mark;
+const clientConfig = loadClientConfig();
+const gameConfig = loadGameConfig();
+
+const serverUrl: string = process.argv[2] || 'ws://localhost:3001';
+const mark: Mark = (process.argv[3] || 'X').toUpperCase() as Mark;
 
 let board: Board = [
   ['', '', ''],
@@ -20,23 +24,22 @@ let board: Board = [
 ];
 let nextTurn: Mark = 'X';
 let status: 'waiting' | 'playing' | 'finished' = 'waiting';
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectAttempts: number = 0;
 let ws: WebSocket | null = null;
-let isManualClose = false;
+let isManualClose: boolean = false;
 
-const rl = readline.createInterface({
+const rl: readline.Interface = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-function printBoard() {
+function printBoard(): void {
   console.clear();
   console.log(`Connected to ${serverUrl} as ${mark}`);
   console.log('Current board:');
   console.log('  0   1   2');
   board.forEach((row, i) => {
-    const line = row.map(cell => cell || ' ').join(' | ');
+    const line: string = row.map(cell => cell || ' ').join(' | ');
     console.log(`${i} ${line}`);
     if (i < 2) console.log('  ---------');
   });
@@ -47,7 +50,7 @@ function printBoard() {
   }
 }
 
-function askForMove(ws: WebSocket) {
+function askForMove(ws: WebSocket): void {
   if (status !== 'playing') return;
   if (nextTurn !== mark) return;
 
@@ -67,7 +70,7 @@ function askForMove(ws: WebSocket) {
     ws.send(
       JSON.stringify({
         type: 'move',
-        gameId: 'default',
+        gameId: gameConfig.defaultGameId,
         row,
         col
       })
@@ -75,7 +78,7 @@ function askForMove(ws: WebSocket) {
   });
 }
 
-function connect() {
+function connect(): void {
   ws = new WebSocket(serverUrl);
 
   ws.on('open', () => {
@@ -84,13 +87,13 @@ function connect() {
     ws!.send(
       JSON.stringify({
         type: 'join',
-        gameId: 'default',
+        gameId: gameConfig.defaultGameId,
         mark
       })
     );
   });
 
-  ws.on('message', (data: any) => {
+  ws.on('message', (data: WebSocket.Data) => {
     let msg: ServerToClientMessage;
     try {
       msg = JSON.parse(data.toString());
@@ -158,10 +161,13 @@ function connect() {
       return;
     }
 
-    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+    if (reconnectAttempts < clientConfig.maxReconnectAttempts) {
       reconnectAttempts++;
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 10000);
-      console.log(`Connection lost. Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      const delay = Math.min(
+        clientConfig.reconnectBaseDelay * Math.pow(2, reconnectAttempts - 1), 
+        clientConfig.reconnectMaxDelay
+      );
+      console.log(`Connection lost. Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${clientConfig.maxReconnectAttempts})...`);
       setTimeout(connect, delay);
     } else {
       console.log('Max reconnection attempts reached. Exiting.');
@@ -169,7 +175,7 @@ function connect() {
     }
   });
 
-  ws.on('error', (err: any) => {
+  ws.on('error', (err: Error) => {
     console.error('WebSocket error:', err.message);
   });
 }

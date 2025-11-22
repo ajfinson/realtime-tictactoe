@@ -24,6 +24,9 @@ import {
   broadcastToGame,
   cleanupGame
 } from './gameLogic';
+import { loadGameConfig } from '../shared/config';
+
+const gameConfig = loadGameConfig();
 
 interface ExtendedWebSocket extends WebSocket {
   gameId?: string;
@@ -63,12 +66,12 @@ export function startWebSocketServer(port: number, serverId: string, redisSync: 
         winner: game.winner
       });
       
-      // Cleanup game after 30 seconds
+      // Cleanup game after configured delay
       setTimeout(() => {
         cleanupGame(game);
         games.delete(msg.gameId);
         console.log(`Cleaned up finished game: ${msg.gameId}`);
-      }, 30000);
+      }, gameConfig.gameCleanupDelay);
     } else {
       broadcastToGame(game, {
         type: 'update',
@@ -135,7 +138,7 @@ async function handleJoinMessage(
   redisSync: RedisSync,
   serverId: string
 ): Promise<void> {
-  const gameId = msg.gameId || 'default';
+  const gameId = msg.gameId || gameConfig.defaultGameId;
   const requestedMark = msg.mark;
 
   if (requestedMark !== 'X' && requestedMark !== 'O') {
@@ -208,7 +211,7 @@ async function handleMoveMessage(
   redisSync: RedisSync,
   serverId: string
 ): Promise<void> {
-  const gameId = msg.gameId || 'default';
+  const gameId = msg.gameId || gameConfig.defaultGameId;
   const game = getOrCreateGame(games, gameId);
 
   if (!socket.gameId || socket.gameId !== gameId || !socket.mark) {
@@ -245,7 +248,7 @@ async function handleMoveMessage(
   }
 
   // Acquire mutex to prevent race conditions
-  const mutexAcquired = await acquireGameMutex(redisSync, gameId, serverId);
+  const mutexAcquired = await acquireGameMutex(redisSync, gameId, serverId, gameConfig.mutexTTL);
   if (!mutexAcquired) {
     sendError(socket, 'Game is being updated, please try again');
     return;
@@ -281,12 +284,12 @@ async function handleMoveMessage(
       };
       await publishSyncState(redisSync, syncMsg);
       
-      // Cleanup finished game after 30 seconds
+      // Cleanup finished game after configured delay
       setTimeout(() => {
         cleanupGame(game);
         games.delete(gameId);
         console.log(`Cleaned up finished game: ${gameId}`);
-      }, 30000);
+      }, gameConfig.gameCleanupDelay);
       
       return;
     }
@@ -315,12 +318,12 @@ async function handleMoveMessage(
       };
       await publishSyncState(redisSync, syncMsg);
       
-      // Cleanup finished game after 30 seconds
+      // Cleanup finished game after configured delay
       setTimeout(() => {
         cleanupGame(game);
         games.delete(gameId);
         console.log(`Cleaned up finished game: ${gameId}`);
-      }, 30000);
+      }, gameConfig.gameCleanupDelay);
       
       return;
     }
