@@ -42,55 +42,96 @@ This project implements a **production-ready**, real-time, multiplayer Tic-Tac-T
 
 ## Quick Start
 
-### One-Command Setup (Recommended)
+### Prerequisites
 
-Just install dependencies and run the game:
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
+2. **Docker must be installed and running** (for Redis)
+
+### Automatic Setup (Recommended)
+
+**One command to open all 5 terminals automatically:**
+
+**On Windows (PowerShell):**
 ```bash
-npm install
 npm run play-game
 ```
 
-This single command will automatically:
-1. Start Redis in Docker
-2. Start both game servers (ports 3001 and 3002)
-3. Wait for servers to be ready
-4. Connect both players (X and O)
-5. Start the game!
+**On macOS/Linux:**
+```bash
+npm run play-game:bash
+```
 
-**Requirements:** Docker must be installed and running.
+This will automatically open 5 separate terminal windows:
+- Terminal 1: Redis server
+- Terminal 2: Game Server A
+- Terminal 3: Game Server B  
+- Terminal 4: Player X (where you play)
+- Terminal 5: Player O (where you play)
 
-Then play by typing `row,col` (e.g. `0,2`) when it's your turn.
-
-Press `Ctrl+C` to stop all processes.
+Once all windows open and show "Status: playing", you can start making moves!
 
 ---
 
 ### Manual Setup (Alternative)
 
-If you prefer to run each component separately:
+If the automatic script doesn't work, you can manually open 5 terminals:
 
-**1. Install dependencies:**
-```bash
-npm install
-```
+To play the game, you need to run 5 separate terminal windows:
 
-**2. Start Redis:**
+**Terminal 1 - Redis:**
 ```bash
-docker run --name ttt-redis -p 6379:6379 redis
+docker run --rm --name ttt-redis -p 6379:6379 redis
 ```
+Keep this running.
 
-**3. Start servers (in separate terminals):**
+**Terminal 2 - Server A:**
 ```bash
-npm run serverA  # Terminal 1
-npm run serverB  # Terminal 2
+npm run serverA
 ```
+Wait for "Server server-A listening on ws://localhost:3001"
 
-**4. Start clients (in separate terminals):**
+**Terminal 3 - Server B:**
 ```bash
-npm run client:X  # Terminal 3
-npm run client:O  # Terminal 4
+npm run serverB
 ```
+Wait for "Server server-B listening on ws://localhost:3002"
+
+**Terminal 4 - Player X (You play here):**
+```bash
+npm run client:X
+```
+This is where you'll enter moves for Player X
+
+**Terminal 5 - Player O (You play here):**
+```bash
+npm run client:O
+```
+This is where you'll enter moves for Player O
+
+### Playing the Game
+
+1. Once all 5 terminals are running, the game status will change from "waiting" to "playing"
+2. Player X goes first - type your move in Terminal 4 (e.g., `0,0` for top-left, `1,1` for center, `2,2` for bottom-right)
+3. Then Player O moves in Terminal 5
+4. The board updates in real-time across both clients
+5. Game automatically detects wins and draws
+
+**Move Format:** `row,col` where both are 0-2
+- `0,0` = top-left
+- `1,1` = center  
+- `2,2` = bottom-right
+
+Press `Ctrl+C` in any terminal to stop that component.
+
+### Stopping the Game
+
+To stop all components:
+1. Close each terminal window individually, OR
+2. Run `docker stop ttt-redis` to stop Redis (other components will fail and exit)
 
 ## Configuration
 

@@ -11,7 +11,8 @@
     "serverB": "cross-env PORT=3002 SERVER_ID=server-B ts-node src/backend/index.ts",
     "client:X": "ts-node src/client/client.ts ws://localhost:3001 X",
     "client:O": "ts-node src/client/client.ts ws://localhost:3002 O",
-    "play-game": "concurrently --kill-others-on-fail --names \"Redis,ServerA,ServerB,ClientX,ClientO\" -c \"blue,green,yellow,cyan,magenta\" \"npm run redis:start\" \"wait-on tcp:6379 && npm run serverA\" \"wait-on tcp:6379 && npm run serverB\" \"wait-on tcp:3001 tcp:3002 && npm run client:X\" \"wait-on tcp:3001 tcp:3002 && npm run client:O\""
+    "play-game": "powershell -ExecutionPolicy Bypass -File ./play-game.ps1",
+    "play-game:bash": "bash ./play-game.sh"
   },
   "dependencies": {
     "redis": "^4.6.13",

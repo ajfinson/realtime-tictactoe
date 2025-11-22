@@ -37,3 +37,7 @@ dump.rdb
 # Test coverage
 coverage/
 .nyc_output/
+
+# Package lock files (optional - uncomment if needed)
+# package-lock.json
+# yarn.lock
