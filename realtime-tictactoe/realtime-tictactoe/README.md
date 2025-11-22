@@ -2,10 +2,76 @@
 
 This project implements a **production-ready**, real-time, multiplayer Tic-Tac-Toe game where:
 
-- Two independent Node.js backend servers run WebSocket endpoints (e.g. on ports 3001 and 3002).
-- Each player connects from a CLI client to either server.
-- Game state is synchronized in real time across both servers using Redis pub/sub.
-- Moves are validated, wins/draws detected, and invalid moves rejected.
+- **Two independent Node.js backend servers** run WebSocket endpoints (ports 3001 and 3002)
+- **Players connect to different servers** - Each player can connect to either server via CLI client
+- **Real-time synchronization** - Game state syncs instantly across both servers using Redis pub/sub
+- **Distributed coordination** - Redis-based locking prevents race conditions and duplicate players
+- **Full game logic** - Moves are validated, wins/draws detected, and invalid moves rejected
+
+## Architecture and Communication Design
+
+### System Overview
+
+```
+┌─────────────┐         ┌─────────────┐
+│  Client X   │         │  Client O   │
+│   (CLI)     │         │   (CLI)     │
+└──────┬──────┘         └──────┬──────┘
+       │ WebSocket             │ WebSocket
+       │                       │
+       ▼                       ▼
+┌─────────────┐         ┌─────────────┐
+│  Server A   │◄───────►│  Server B   │
+│ (port 3001) │  Redis  │ (port 3002) │
+└─────────────┘  Pub/Sub └─────────────┘
+       │                       │
+       └───────────┬───────────┘
+                   ▼
+            ┌─────────────┐
+            │    Redis    │
+            │  (port 6379)│
+            └─────────────┘
+```
+
+### Communication Flow
+
+1. **Client → Server (WebSocket):**
+   - `join` message: Player joins game with chosen mark (X or O)
+   - `move` message: Player submits a move (row, col)
+
+2. **Server → Client (WebSocket):**
+   - `joined` message: Confirms player joined, sends current board state
+   - `update` message: Broadcasts board updates after each move
+   - `end` message: Announces game winner or draw
+   - `error` message: Validation errors (invalid move, not your turn, etc.)
+
+3. **Server ↔ Server (Redis Pub/Sub):**
+   - `sync_state` message: Synchronizes game state across servers
+   - Includes board, turn, status, winner, and sequence number
+   - Only applied if sequence number is newer (prevents stale updates)
+
+4. **Distributed Locking (Redis):**
+   - `game:{gameId}:player:{mark}` - Player ownership locks (30s TTL)
+   - `game:{gameId}:mutex` - Move processing mutex (5s TTL)
+   - Prevents duplicate players and concurrent move conflicts
+
+### Data Flow Example
+
+1. Player X connects to Server A and sends `join` with mark "X"
+2. Server A acquires Redis lock for "X" and stores player socket
+3. Player O connects to Server B and sends `join` with mark "O"
+4. Server B acquires Redis lock for "O" 
+5. Both servers detect both locks exist → game status changes to "playing"
+6. Player X sends `move` to Server A
+7. Server A:
+   - Acquires game mutex
+   - Validates move
+   - Updates local game state
+   - Publishes `sync_state` to Redis
+   - Broadcasts `update` to local clients
+   - Releases mutex
+8. Server B receives `sync_state` from Redis and broadcasts `update` to its clients
+9. Player O sees updated board in real-time despite being on different server
 
 ## Features
 
@@ -78,54 +144,105 @@ Once all windows open and show "Status: playing", you can start making moves!
 
 ### Manual Setup (Alternative)
 
-If the automatic script doesn't work, you can manually open 5 terminals:
+If the automatic script doesn't work or you want more control, you can manually run each component:
 
-To play the game, you need to run 5 separate terminal windows:
+#### Step 1: Start Redis
 
-**Terminal 1 - Redis:**
+**Terminal 1:**
 ```bash
 docker run --rm --name ttt-redis -p 6379:6379 redis
 ```
-Keep this running.
+Keep this running. You should see Redis startup logs.
+
+#### Step 2: Start Both Servers
 
 **Terminal 2 - Server A:**
 ```bash
 npm run serverA
 ```
-Wait for "Server server-A listening on ws://localhost:3001"
+Wait for the log: `Server listening on ws://localhost:3001`
 
 **Terminal 3 - Server B:**
 ```bash
 npm run serverB
 ```
-Wait for "Server server-B listening on ws://localhost:3002"
+Wait for the log: `Server listening on ws://localhost:3002`
 
-**Terminal 4 - Player X (You play here):**
+Both servers are now running independently and connected to Redis.
+
+#### Step 3: Connect Both Clients
+
+**Terminal 4 - Player X:**
 ```bash
 npm run client:X
 ```
-This is where you'll enter moves for Player X
+This connects to Server A (port 3001) as Player X.
 
-**Terminal 5 - Player O (You play here):**
+**Terminal 5 - Player O:**
 ```bash
 npm run client:O
 ```
-This is where you'll enter moves for Player O
+This connects to Server B (port 3002) as Player O.
 
-### Playing the Game
+**Alternative:** You can connect both players to the same server or mix and match:
+```bash
+# Both on Server A
+ts-node src/client/client.ts ws://localhost:3001 X
+ts-node src/client/client.ts ws://localhost:3001 O
 
-1. Once all 5 terminals are running, the game status will change from "waiting" to "playing"
-2. Player X goes first - type your move in Terminal 4 (e.g., `0,0` for top-left, `1,1` for center, `2,2` for bottom-right)
-3. Then Player O moves in Terminal 5
-4. The board updates in real-time across both clients
-5. Game automatically detects wins and draws
+# Both on Server B
+ts-node src/client/client.ts ws://localhost:3002 X
+ts-node src/client/client.ts ws://localhost:3002 O
 
-**Move Format:** `row,col` where both are 0-2
-- `0,0` = top-left
-- `1,1` = center  
-- `2,2` = bottom-right
+# Mixed (default)
+npm run client:X  # Server A
+npm run client:O  # Server B
+```
 
-Press `Ctrl+C` in any terminal to stop that component.
+### How to Test a 2-Player Game
+
+Once all components are running (Redis + 2 Servers + 2 Clients):
+
+1. **Wait for "Status: playing"** 
+   - Both client terminals will show the game board
+   - Status changes from "waiting" to "playing" when both players join
+
+2. **Player X moves first** (Terminal 4)
+   - Enter your move as `row,col` (both 0-2)
+   - Example: `1,1` for center square
+   - Board coordinates:
+     ```
+       0   1   2
+     0 ┌───┬───┬───┐
+     1 │   │ X │   │  ← (1,1) is center
+     2 └───┴───┴───┘
+     ```
+
+3. **Player O moves next** (Terminal 5)
+   - After X moves, it's automatically O's turn
+   - Enter your move the same way
+   - If you try to move out of turn, you'll see: "⏳ Not your turn yet"
+
+4. **Watch real-time sync**
+   - Both terminals update instantly after each move
+   - Even though players are on different servers!
+   - Try it: X on Server A, O on Server B, moves sync perfectly
+
+5. **Game ends automatically**
+   - Win: "You win! 🎉" or "You lose. 😢"
+   - Draw: "Game ended in a draw."
+   - Connection closes automatically
+
+**Valid Move Examples:**
+- `0,0` = top-left corner
+- `0,1` = top-middle
+- `1,1` = center
+- `2,2` = bottom-right corner
+
+**Tips:**
+- Try entering moves when it's not your turn to see the feedback
+- Try invalid moves (e.g., `3,3` or `abc`) to see error handling
+- Press `Ctrl+C` to disconnect a player and test reconnection
 
 ### Stopping the Game
 
