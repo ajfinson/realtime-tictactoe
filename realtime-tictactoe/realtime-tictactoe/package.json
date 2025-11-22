@@ -1,0 +1,23 @@
+{
+  "name": "realtime-tictactoe",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "serverA": "PORT=3001 SERVER_ID=server-A ts-node src/backend/index.ts",
+    "serverB": "PORT=3002 SERVER_ID=server-B ts-node src/backend/index.ts",
+    "client:X": "ts-node src/client/client.ts ws://localhost:3001 X",
+    "client:O": "ts-node src/client/client.ts ws://localhost:3002 O"
+  },
+  "dependencies": {
+    "redis": "^4.6.13",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.1",
+    "@types/ws": "^8.5.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
