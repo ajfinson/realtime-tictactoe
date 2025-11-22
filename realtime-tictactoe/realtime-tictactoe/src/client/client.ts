@@ -10,6 +10,9 @@ import {
   type ErrorMessage
 } from '../shared/protocol';
 import { loadClientConfig, loadGameConfig } from '../shared/config';
+import { logger } from '../shared/logger';
+
+const log = logger.child('Client');
 
 const clientConfig = loadClientConfig();
 const gameConfig = loadGameConfig();
@@ -82,6 +85,7 @@ function connect(): void {
   ws = new WebSocket(serverUrl);
 
   ws.on('open', () => {
+    log.info(`Connected to ${serverUrl} as ${mark}`);
     console.log(`Connected to ${serverUrl}. Joining game as ${mark}...`);
     reconnectAttempts = 0;
     ws!.send(
@@ -98,7 +102,7 @@ function connect(): void {
     try {
       msg = JSON.parse(data.toString());
     } catch {
-      console.error('Invalid JSON from server:', data.toString());
+      log.error('Invalid JSON from server', { data: data.toString() });
       return;
     }
 
@@ -167,16 +171,18 @@ function connect(): void {
         clientConfig.reconnectBaseDelay * Math.pow(2, reconnectAttempts - 1), 
         clientConfig.reconnectMaxDelay
       );
+      log.info(`Reconnecting in ${delay}ms`, { attempt: reconnectAttempts, max: clientConfig.maxReconnectAttempts });
       console.log(`Connection lost. Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${clientConfig.maxReconnectAttempts})...`);
       setTimeout(connect, delay);
     } else {
+      log.warn('Max reconnection attempts reached');
       console.log('Max reconnection attempts reached. Exiting.');
       rl.close();
     }
   });
 
   ws.on('error', (err: Error) => {
-    console.error('WebSocket error:', err.message);
+    log.error('WebSocket error', { error: err.message });
   });
 }
 

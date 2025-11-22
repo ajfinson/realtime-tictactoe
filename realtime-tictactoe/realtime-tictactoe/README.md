@@ -140,11 +140,59 @@ Environment variables:
 - `SERVER_ID` - Unique server identifier for sync tracking
 - `REDIS_URL` - Redis connection URL (default: `redis://localhost:6379`)
 
+## Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Test Coverage:**
+- ✅ Game logic (48 tests)
+  - Win detection (all patterns)
+  - Board state management
+  - Game initialization
+- ✅ Protocol validation
+  - Message type guards
+  - Edge cases and malformed data
+- ✅ Configuration system
+  - Environment variable overrides
+  - Default fallbacks
+
+## Logging
+
+The application uses a structured logging system with color-coded output:
+
+**Log Levels:** `debug`, `info`, `warn`, `error`
+
+**Configuration (via `.env`):**
+```bash
+LOG_LEVEL=info              # Minimum level to display
+LOG_CONSOLE=true            # Console output (default: true)
+LOG_FILE=false              # File output (default: false)
+LOG_FILE_PATH=./logs/app.log  # Log file location
+```
+
+**Examples:**
+- Set `LOG_LEVEL=debug` to see all sync messages and lock operations
+- Set `LOG_LEVEL=error` for production to only see critical issues
+- Each component has its own context (e.g., `[RedisSync]`, `[Server:A]`)
+
 ## Architecture
 
 ### Components
 
 - **`src/shared/protocol.ts`** - TypeScript message interfaces
+- **`src/shared/config.ts`** - Centralized configuration with env var support
+- **`src/shared/logger.ts`** - Structured logging system
 - **`src/backend/gameLogic.ts`** - Core game mechanics and state management
 - **`src/backend/redisSync.ts`** - Redis pub/sub with locking and reconnection
 - **`src/backend/server.ts`** - WebSocket server with sync handlers

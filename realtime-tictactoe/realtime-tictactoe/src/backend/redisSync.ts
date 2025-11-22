@@ -1,6 +1,9 @@
 import { createClient } from 'redis';
 import type { SyncStateMessage } from '../shared/protocol';
 import type { RedisConfig } from '../shared/config';
+import { logger } from '../shared/logger';
+
+const log = logger.child('RedisSync');
 
 export interface RedisSync {
   pub: ReturnType<typeof createClient>;
@@ -15,11 +18,11 @@ export async function initRedisSync(config: RedisConfig): Promise<RedisSync> {
     socket: {
       reconnectStrategy: (retries: number) => {
         if (retries > config.maxReconnectAttempts) {
-          console.error('Redis pub: Too many reconnection attempts, giving up');
+          log.error('Redis pub: Too many reconnection attempts, giving up');
           return new Error('Too many retries');
         }
         const delay = Math.min(retries * config.reconnectBaseDelay, config.reconnectMaxDelay);
-        console.log(`Redis pub: Reconnecting in ${delay}ms (attempt ${retries})`);
+        log.info(`Redis pub: Reconnecting in ${delay}ms (attempt ${retries})`);
         return delay;
       }
     }
@@ -30,24 +33,24 @@ export async function initRedisSync(config: RedisConfig): Promise<RedisSync> {
     socket: {
       reconnectStrategy: (retries: number) => {
         if (retries > config.maxReconnectAttempts) {
-          console.error('Redis sub: Too many reconnection attempts, giving up');
+          log.error('Redis sub: Too many reconnection attempts, giving up');
           return new Error('Too many retries');
         }
         const delay = Math.min(retries * config.reconnectBaseDelay, config.reconnectMaxDelay);
-        console.log(`Redis sub: Reconnecting in ${delay}ms (attempt ${retries})`);
+        log.info(`Redis sub: Reconnecting in ${delay}ms (attempt ${retries})`);
         return delay;
       }
     }
   });
 
-  pub.on('error', (err: Error) => console.error('Redis pub error:', err));
-  sub.on('error', (err: Error) => console.error('Redis sub error:', err));
+  pub.on('error', (err: Error) => log.error('Redis pub error', { error: err.message }));
+  sub.on('error', (err: Error) => log.error('Redis sub error', { error: err.message }));
   
-  pub.on('reconnecting', () => console.log('Redis pub: Reconnecting...'));
-  sub.on('reconnecting', () => console.log('Redis sub: Reconnecting...'));
+  pub.on('reconnecting', () => log.info('Redis pub: Reconnecting...'));
+  sub.on('reconnecting', () => log.info('Redis sub: Reconnecting...'));
   
-  pub.on('ready', () => console.log('Redis pub: Connected and ready'));
-  sub.on('ready', () => console.log('Redis sub: Connected and ready'));
+  pub.on('ready', () => log.info('Redis pub: Connected and ready'));
+  sub.on('ready', () => log.info('Redis sub: Connected and ready'));
 
   await pub.connect();
   await sub.connect();
@@ -73,7 +76,7 @@ export async function subscribeToSync(
       const parsed = JSON.parse(raw) as SyncStateMessage;
       handler(parsed);
     } catch (err) {
-      console.error('Error parsing sync_state message:', err);
+      log.error('Error parsing sync_state message', { error: err });
     }
   });
 }
@@ -92,7 +95,7 @@ export async function acquirePlayerLock(
     });
     return result === 'OK';
   } catch (err) {
-    console.error('Error acquiring player lock:', err);
+    log.error('Error acquiring player lock', { error: err });
     return false;
   }
 }
@@ -111,7 +114,7 @@ export function startLockRenewal(
         await sync.pub.expire(lockKey, sync.config.lockTTL);
       }
     } catch (err) {
-      console.error('Error renewing lock:', err);
+      log.error('Error renewing lock', { error: err });
     }
   }, sync.config.lockRenewalInterval);
 }
@@ -129,7 +132,7 @@ export async function releasePlayerLock(
       await sync.pub.del(lockKey);
     }
   } catch (err) {
-    console.error('Error releasing lock:', err);
+    log.error('Error releasing lock', { error: err });
   }
 }
 
@@ -147,7 +150,7 @@ export async function acquireGameMutex(
     });
     return result === 'OK';
   } catch (err) {
-    console.error('Error acquiring game mutex:', err);
+    log.error('Error acquiring game mutex', { error: err });
     return false;
   }
 }
@@ -164,6 +167,6 @@ export async function releaseGameMutex(
       await sync.pub.del(mutexKey);
     }
   } catch (err) {
-    console.error('Error releasing game mutex:', err);
+    log.error('Error releasing game mutex', { error: err });
   }
 }

@@ -1,5 +1,6 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import type { RedisSync } from './redisSync';
+import { logger } from '../shared/logger';
 import { 
   publishSyncState, 
   subscribeToSync,
@@ -37,8 +38,9 @@ const games: GamesMap = new Map();
 
 export function startWebSocketServer(port: number, serverId: string, redisSync: RedisSync): void {
   const wss = new WebSocketServer({ port });
+  const log = logger.child(`Server:${serverId}`);
 
-  console.log(`Server ${serverId} listening on ws://localhost:${port}`);
+  log.info(`Server listening on ws://localhost:${port}`);
 
   // Handle sync messages from other servers
   subscribeToSync(redisSync, (msg: SyncStateMessage) => {
@@ -48,7 +50,7 @@ export function startWebSocketServer(port: number, serverId: string, redisSync: 
     
     // Only apply if sequence number is newer
     if (msg.sequenceNumber <= game.sequenceNumber) {
-      console.log(`Ignoring stale sync message (seq ${msg.sequenceNumber} <= ${game.sequenceNumber})`);
+      log.debug(`Ignoring stale sync message (seq ${msg.sequenceNumber} <= ${game.sequenceNumber})`);
       return;
     }
     
@@ -70,7 +72,7 @@ export function startWebSocketServer(port: number, serverId: string, redisSync: 
       setTimeout(() => {
         cleanupGame(game);
         games.delete(msg.gameId);
-        console.log(`Cleaned up finished game: ${msg.gameId}`);
+        log.info(`Cleaned up finished game: ${msg.gameId}`);
       }, gameConfig.gameCleanupDelay);
     } else {
       broadcastToGame(game, {
@@ -83,7 +85,7 @@ export function startWebSocketServer(port: number, serverId: string, redisSync: 
       });
     }
   }).catch(err => {
-    console.error('Failed to subscribe to Redis sync channel:', err);
+    log.error('Failed to subscribe to Redis sync channel', { error: err });
   });
 
   wss.on('connection', (socket: ExtendedWebSocket) => {
@@ -102,9 +104,9 @@ export function startWebSocketServer(port: number, serverId: string, redisSync: 
       }
 
       if (msg.type === 'join') {
-        await handleJoinMessage(socket, msg, redisSync, serverId);
+        await handleJoinMessage(socket, msg, redisSync, serverId, log);
       } else if (msg.type === 'move') {
-        await handleMoveMessage(socket, msg, redisSync, serverId);
+        await handleMoveMessage(socket, msg, redisSync, serverId, log);
       }
     });
 
@@ -136,7 +138,8 @@ async function handleJoinMessage(
   socket: ExtendedWebSocket,
   msg: ClientToServerMessage & { type: 'join' },
   redisSync: RedisSync,
-  serverId: string
+  serverId: string,
+  log: ReturnType<typeof logger.child>
 ): Promise<void> {
   const gameId = msg.gameId || gameConfig.defaultGameId;
   const requestedMark = msg.mark;
@@ -209,7 +212,8 @@ async function handleMoveMessage(
   socket: ExtendedWebSocket,
   msg: ClientToServerMessage & { type: 'move' },
   redisSync: RedisSync,
-  serverId: string
+  serverId: string,
+  log: ReturnType<typeof logger.child>
 ): Promise<void> {
   const gameId = msg.gameId || gameConfig.defaultGameId;
   const game = getOrCreateGame(games, gameId);
@@ -322,7 +326,7 @@ async function handleMoveMessage(
       setTimeout(() => {
         cleanupGame(game);
         games.delete(gameId);
-        console.log(`Cleaned up finished game: ${gameId}`);
+        log.info(`Cleaned up finished game: ${gameId}`);
       }, gameConfig.gameCleanupDelay);
       
       return;
