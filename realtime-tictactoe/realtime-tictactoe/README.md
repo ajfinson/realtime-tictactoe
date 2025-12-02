@@ -351,5 +351,115 @@ LOG_FILE_PATH=./logs/app.log  # Log file location
 - Finished games removed after 30 seconds
 - Lock renewal intervals cleared on disconnect
 - Prevents memory leaks and stale locks
+  
+**Task**
+🧪 Backend Developer Home Test: Real-Time Tic-Tac-Toe Over Two Servers
+🎯 Task Overview
+Build a real-time, multiplayer Tic-Tac-Toe (X and O) game that allows two players to compete against each other from separate clients, connected over WebSocket.
+
+Each player may connect to one of two independent backend servers. When one player makes a move, it should immediately reflect on the other player’s screen—even if the other player is connected to the other server.
+
+🛠 Technical Requirements
+✅ Backend
+Use Node.js backend framework.
+
+Implement two independent WebSocket servers (e.g., Server A on port 3001, Server B on port 3002).
+
+Clients may connect to either server.
+
+The two servers must:
+
+Synchronize game state in real-time (via WebSocket federation, shared memory layer like Redis pub/sub, or any protocol of your choice).
+
+Handle move validation, win/draw detection, and game state updates.
+
+Reject invalid moves (e.g., wrong turn, occupied cell).
+
+✅ Client
+You must build a CLI-based WebSocket client (no browser required).
+
+Client responsibilities:
+
+Connect to either backend server via WebSocket.
+
+Display the game board (e.g., ASCII grid).
+
+Accept input from the user (row, col) via terminal.
+
+Show opponent’s move when it happens (real-time).
+
+You may implement it in the same language as the server or use a separate script.
+
+📄 What You Need to Deliver
+A working Tic-Tac-Toe game where:
+
+Two CLI-based WebSocket clients can connect to different backend servers.
+
+Moves are reflected in real-time across both clients via backend sync.
+
+Clearly defined communication protocol between:
+
+Client ↔ Server (WebSocket messages: join, move, update)
+
+Server ↔ Server (your custom sync messages)
+
+🔧 Example Protocol (Suggestion)
+WebSocket Message Types (JSON):
+{ "type": "join", "playerId": "X" }
+
+{ "type": "move", "row": 1, "col": 2 }
+
+{ "type": "update", "board": [["X","",""],["","O",""],["","",""]], "nextTurn": "X" }
+
+{ "type": "win", "winner": "O" }
+⏱ Time Limit
+You have 4 hours to complete this task.
+
+📄 Submission
+Host your solution in a public GitHub repository.
+
+Include a README.md with:
+
+Architecture and communication design
+
+Instructions to run both servers
+
+Instructions to run the CLI client(s)
+
+How to test a 2-player game from two terminals
+
+🧠 AI Tools Encouraged
+We would like to see extensive use of AI-generated code in your solution.
+
+You are encouraged to:
+
+Use any other AI code tool
+
+Include comments or notes in your code or README:
+
+Where AI was used
+
+What prompts you gave (if applicable)
+
+How you modified or improved the AI-generated code
+
+🧪 We will evaluate how effectively you used AI tools to generate high-quality, working code—not just manual coding skill.
+
+✅ Evaluation Criteria
+Correctness: Real-time game over two servers works as expected
+
+Code Quality: Readable, well-organized, and documented
+
+Design: Reasonable sync protocol and modular separation
+
+Usability: Simple CLI interface with working gameplay
+
+Real-time: Updates reflect instantly between both clients
+
+
+🚀 Good Luck!
+We’re excited to see what you build!
+
+
 
 See inline comments in the code for detailed implementation notes.
